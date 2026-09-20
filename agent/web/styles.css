@@ -1,0 +1,785 @@
+/* MonitorPad
+ *
+ * Everything below is driven by the tokens in :root. Spacing is a 4px scale
+ * and type is a five-step scale, so the compact desktop layout can be had by
+ * redefining a handful of tokens rather than overriding dozens of rules.
+ */
+
+:root {
+  /* colour ------------------------------------------------------------ */
+  --bg: #0b1020;
+  --bg-raised: #141b31;
+  --bg-sunken: #070b17;
+  --line: #243050;
+  --line-soft: #1a2340;
+  --text: #e8edfb;
+  --text-dim: #94a3c8;
+  --accent: #5b8cff;
+  --accent-ink: #ffffff;
+  --knob: #ffffff;
+  --good: #31d0aa;
+  --warn: #f5a524;
+  --bad: #ff5d6c;
+  --shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+
+  /* spacing, 4px scale ------------------------------------------------ */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 20px;
+  --s6: 24px;
+
+  /* type -------------------------------------------------------------- */
+  --t-xs: 11px;
+  --t-sm: 12px;
+  --t-md: 14px;
+  --t-lg: 16px;
+  --t-xl: 20px;
+
+  /* shape ------------------------------------------------------------- */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-pill: 999px;
+
+  /* controls ---------------------------------------------------------- */
+  --control-h: 44px;      /* finger sized by default */
+  --switch-w: 51px;
+  --switch-h: 31px;
+  --stage-h: 210px;
+
+  --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2.5 4.5L6 8l3.5-3.5' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f2f4fa;
+    --bg-raised: #ffffff;
+    --bg-sunken: #eaeef7;
+    --line: #d2d9ea;
+    --line-soft: #e3e8f4;
+    --text: #131a2c;
+    --text-dim: #5b6685;
+    --accent: #2f62e8;
+    --good: #0e9c7c;
+    --warn: #b76e00;
+    --bad: #d33044;
+    --shadow: 0 10px 28px rgba(19, 26, 44, 0.16);
+  }
+}
+
+/* --------------------------------------------------------------- base */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Several components set an explicit display, which would otherwise beat
+   the user-agent rule for [hidden] and leave them permanently on. */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: var(--t-lg)/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", system-ui, sans-serif;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body { min-height: 100dvh; }
+
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: -0.01em; }
+
+button, input, select { font: inherit; color: inherit; }
+button { -webkit-tap-highlight-color: transparent; }
+
+/* A single visible focus treatment for everything interactive. Keyboard and
+   switch-control users get no affordance at all without this. */
+:is(button, select, input, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+:focus:not(:focus-visible) { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ------------------------------------------------------------ pairing */
+
+.screen { display: block; }
+
+#pair {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-top) + var(--s6)) var(--s5)
+           calc(var(--safe-bottom) + var(--s6));
+}
+
+.pair-card {
+  width: 100%;
+  max-width: 420px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--s6) var(--s5);
+  text-align: center;
+}
+
+.logo {
+  width: 56px;
+  height: 40px;
+  margin: 0 auto var(--s4);
+  border: 3px solid var(--accent);
+  border-radius: 6px;
+  position: relative;
+}
+.logo::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.pair-card h1 { font-size: var(--t-xl); margin-bottom: var(--s2); }
+.pair-card p {
+  color: var(--text-dim);
+  font-size: var(--t-md);
+  margin: 0 0 var(--s4);
+}
+
+.pair-card input {
+  width: 100%;
+  min-height: var(--control-h);
+  padding: var(--s3);
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  margin-bottom: var(--s3);
+  text-align: center;
+  font-size: 26px;
+  letter-spacing: 0.22em;
+  font-variant-numeric: tabular-nums;
+}
+.pair-card input::placeholder { letter-spacing: 0.22em; opacity: 0.35; }
+.pair-card .primary { width: 100%; }
+
+.fineprint {
+  font-size: var(--t-sm) !important;
+  color: var(--text-dim);
+  margin: var(--s3) 0 0 !important;
+}
+
+.error { color: var(--bad); font-size: var(--t-md); margin: var(--s2) 0 0; }
+
+/* ------------------------------------------------------------- chrome */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: calc(var(--safe-top) + var(--s3))
+           calc(var(--safe-right) + var(--s4)) var(--s3)
+           calc(var(--safe-left) + var(--s4));
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.eyebrow {
+  display: block;
+  font-size: var(--t-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--text-dim);
+}
+
+.topbar h1 { font-size: var(--t-xl); }
+.topbar-actions { display: flex; gap: var(--s2); }
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon-btn:hover { border-color: var(--accent); }
+.icon-btn:active { background: var(--bg-sunken); }
+.icon-btn.spinning svg { animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+main {
+  padding: var(--s4) calc(var(--safe-right) + var(--s4)) 0
+           calc(var(--safe-left) + var(--s4));
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* Clearance for the fixed action bar, which only exists while there are
+   unapplied changes. Deliberately not animated: this is layout, and a
+   transition leaves it stuck at the old height whenever the window is not
+   being composited. */
+.tail { height: var(--s6); }
+body.has-changes .tail { height: 120px; }
+
+.panel { margin-bottom: var(--s6); }
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+.panel-head h2 {
+  font-size: var(--t-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-dim);
+}
+.hint { font-size: var(--t-sm); color: var(--text-dim); }
+
+.banner {
+  background: color-mix(in srgb, var(--warn) 16%, var(--bg-raised));
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  border-radius: var(--r-sm);
+  padding: var(--s3);
+  font-size: var(--t-md);
+  margin-bottom: var(--s4);
+}
+.banner.bad {
+  background: color-mix(in srgb, var(--bad) 16%, var(--bg-raised));
+  border-color: color-mix(in srgb, var(--bad) 45%, transparent);
+}
+
+.warning {
+  font-size: var(--t-md);
+  color: var(--warn);
+  margin: var(--s3) 2px 0;
+}
+
+/* -------------------------------------------------------------- stage */
+
+.stage {
+  position: relative;
+  height: var(--stage-h);
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  touch-action: none;
+}
+
+.mon-box {
+  position: absolute;
+  border-radius: var(--r-sm);
+  border: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, var(--bg-raised));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: var(--s1);
+  overflow: hidden;
+  cursor: grab;
+  transition: box-shadow 0.15s ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.mon-box.primary {
+  border-color: var(--good);
+  background: color-mix(in srgb, var(--good) 22%, var(--bg-raised));
+}
+.mon-box.dragging {
+  cursor: grabbing;
+  z-index: 5;
+  box-shadow: var(--shadow);
+}
+.mon-box.selected { outline: 2px solid var(--text); outline-offset: 2px; }
+
+.mon-box .idx { font-size: var(--t-xl); font-weight: 700; line-height: 1; }
+.mon-box .meta {
+  font-size: var(--t-xs);
+  color: var(--text-dim);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.stage-empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-dim);
+  font-size: var(--t-md);
+}
+
+/* ----------------------------------------------------------- monitors */
+
+.monitors { display: flex; flex-direction: column; gap: var(--s3); }
+
+.card {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--s3) var(--s4);
+}
+.card.off { opacity: 0.75; }
+.card.absent {
+  opacity: 1;
+  border-style: dashed;
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--line));
+  background: color-mix(in srgb, var(--warn) 6%, var(--bg-raised));
+}
+.card.absent .card-name { color: var(--text-dim); }
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+/* The whole heading is the collapse control, so it is a real button: it
+   focuses, it responds to Enter and Space, and it announces its state. */
+.card-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  background: none;
+  border: none;
+  padding: var(--s1) 0;
+  margin: 0;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.card-chevron {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  color: var(--text-dim);
+  transition: transform 0.18s ease;
+}
+.card-chevron svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.card.collapsed .card-chevron { transform: rotate(-90deg); }
+
+.card-title { min-width: 0; }
+.card-name {
+  font-size: var(--t-lg);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.card-sub {
+  font-size: var(--t-sm);
+  color: var(--text-dim);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+  margin-top: var(--s2);
+  padding-left: calc(18px + var(--s2));
+}
+.badges:empty { display: none; }
+
+.badge {
+  font-size: var(--t-xs);
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+.badge.on {
+  color: var(--good);
+  border-color: color-mix(in srgb, var(--good) 50%, transparent);
+  background: color-mix(in srgb, var(--good) 14%, transparent);
+}
+.badge.idx {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.badge.absent {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 50%, transparent);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
+/* A badge that is actually a button. */
+button.badge.action {
+  cursor: pointer;
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: transparent;
+  font-family: inherit;
+}
+button.badge.action:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.rows { margin-top: var(--s3); display: flex; flex-direction: column; }
+.card.collapsed .rows { display: none; }
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  padding: var(--s2) 0;
+  border-top: 1px solid var(--line-soft);
+  min-height: var(--control-h);
+}
+.row:first-child { border-top: none; }
+.row-label { font-size: var(--t-md); }
+.row-note {
+  display: block;
+  font-size: var(--t-xs);
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+
+/* ----------------------------------------------------------- controls */
+
+/* The chevron is a mask filled with currentColor, so it follows the theme.
+   A background-image would bake one theme's colour into the data URI. */
+.field {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  max-width: 62%;
+  min-width: 0;
+}
+.field::after {
+  content: "";
+  position: absolute;
+  right: var(--s3);
+  width: 12px;
+  height: 12px;
+  color: var(--text-dim);
+  background: currentColor;
+  -webkit-mask: var(--chevron) no-repeat center / 12px 12px;
+  mask: var(--chevron) no-repeat center / 12px 12px;
+  pointer-events: none;
+}
+.field select {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-h);
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: var(--s2) calc(var(--s4) + var(--s3)) var(--s2) var(--s3);
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.field select:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.field select:disabled { opacity: 0.45; cursor: default; }
+.field.dirty select { border-color: var(--accent); }
+
+.switch {
+  position: relative;
+  width: var(--switch-w);
+  height: var(--switch-h);
+  flex: none;
+  border-radius: var(--r-pill);
+  border: none;
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc(var(--switch-h) - 4px);
+  height: calc(var(--switch-h) - 4px);
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.18s ease;
+}
+.switch[aria-checked="true"] { background: var(--good); box-shadow: none; }
+.switch[aria-checked="true"]::after {
+  transform: translateX(calc(var(--switch-w) - var(--switch-h)));
+}
+.switch:disabled { opacity: 0.4; cursor: default; }
+
+.linkbtn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: var(--t-md);
+  padding: var(--s1) 0;
+  cursor: pointer;
+}
+.linkbtn:disabled { color: var(--text-dim); cursor: default; }
+
+.primary, .ghost {
+  border-radius: var(--r-md);
+  padding: var(--s3) var(--s4);
+  font-weight: 600;
+  font-size: var(--t-md);
+  cursor: pointer;
+  border: 1px solid transparent;
+  min-height: var(--control-h);
+}
+.primary { background: var(--accent); color: var(--accent-ink); }
+.primary:hover { filter: brightness(1.07); }
+.primary:active { filter: brightness(0.92); }
+.primary:disabled { opacity: 0.5; filter: none; }
+.ghost {
+  background: var(--bg-raised);
+  border-color: var(--line);
+  color: var(--text);
+}
+.ghost:hover { border-color: var(--accent); }
+.ghost.small {
+  padding: var(--s1) var(--s3);
+  font-size: var(--t-sm);
+  min-height: 34px;
+}
+.ghost.danger { color: var(--bad); }
+.ghost.danger:hover { border-color: var(--bad); }
+
+/* ----------------------------------------------------------- profiles */
+
+.profiles { display: flex; flex-direction: column; gap: var(--s2); }
+
+.profile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: var(--s2) var(--s3);
+}
+.profile-name {
+  font-size: var(--t-md);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.profile-actions { display: flex; gap: var(--s1); flex: none; }
+
+.profile-save { display: flex; gap: var(--s2); margin-top: var(--s3); }
+.profile-save input {
+  flex: 1;
+  min-width: 0;
+  min-height: var(--control-h);
+  padding: var(--s2) var(--s3);
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+}
+
+.empty { color: var(--text-dim); font-size: var(--t-md); padding: var(--s1) 2px; }
+.empty.subtle { font-size: var(--t-sm); padding-top: var(--s2); opacity: 0.8; }
+
+/* ---------------------------------------------------------- actionbar */
+
+.actionbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  padding: var(--s3) calc(var(--safe-right) + var(--s4))
+           calc(var(--safe-bottom) + var(--s3)) calc(var(--safe-left) + var(--s4));
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(18px);
+  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  border-top: 1px solid var(--line);
+}
+.actionbar-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+.change-summary { font-size: var(--t-md); color: var(--text-dim); }
+.actionbar-buttons { display: flex; gap: var(--s2); flex: none; }
+
+/* ------------------------------------------------------------ overlay */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: var(--s5);
+  background: rgba(3, 6, 15, 0.72);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.confirm-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--s6);
+  text-align: center;
+}
+.confirm-card h2 { font-size: var(--t-xl); margin-bottom: var(--s2); }
+.confirm-card p {
+  color: var(--text-dim);
+  font-size: var(--t-md);
+  margin: 0 0 var(--s4);
+}
+.confirm-card strong { color: var(--text); font-variant-numeric: tabular-nums; }
+.confirm-buttons { display: flex; gap: var(--s2); }
+.confirm-buttons button { flex: 1; }
+
+/* -------------------------------------------------------------- toast */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--safe-bottom) + 96px);
+  transform: translateX(-50%);
+  z-index: 70;
+  max-width: min(90vw, 420px);
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s3);
+  font-size: var(--t-md);
+  box-shadow: var(--shadow);
+}
+.toast.bad {
+  border-color: color-mix(in srgb, var(--bad) 55%, transparent);
+  color: var(--bad);
+}
+
+/* ------------------------------------- compact layout, wider than phone */
+/* The phone keeps the roomier spacing: its controls have to stay finger
+   sized. In the desktop app window there is no such constraint, so the
+   scale tightens and settings pair up two to a line. */
+
+@media (min-width: 460px) {
+  :root {
+    --s3: 10px;
+    --s4: 13px;
+    --s5: 16px;
+    --s6: 18px;
+    --control-h: 34px;
+    --switch-w: 44px;
+    --switch-h: 26px;
+    --stage-h: 150px;
+    --t-lg: 15px;
+  }
+
+  main { padding-top: var(--s3); }
+  .topbar h1 { font-size: 18px; }
+  .icon-btn { width: 34px; height: 34px; }
+  .icon-btn svg { width: 17px; height: 17px; }
+
+  .monitors { gap: var(--s2); }
+  .card { border-radius: var(--r-md); }
+  .card-chevron { width: 16px; height: 16px; }
+  .badges { padding-left: calc(16px + var(--s2)); }
+
+  .rows {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--s4);
+  }
+  .row { min-height: 0; padding: var(--s2) 0; gap: var(--s2); }
+  /* The whole first grid row, not merely the first element. */
+  .row:nth-child(-n + 2) { border-top: none; }
+  .row.wide, .rows > .empty { grid-column: 1 / -1; }
+
+  /* A dropdown squeezed into half a card has no room for "3840 x 2160
+     (native)", so in a narrow column the label sits above it instead. */
+  .row:has(select) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--s1);
+  }
+  .row:has(select) .field { max-width: 100%; width: 100%; }
+
+  .row-label { font-size: 13px; }
+  .field select { font-size: 13px; }
+
+  .tail { height: var(--s5); }
+  body.has-changes .tail { height: 84px; }
+}
+
+/* Shorter windows: give the arrangement less of the screen. */
+@media (min-width: 460px) and (max-height: 820px) {
+  :root { --stage-h: 124px; }
+}

@@ -1,0 +1,19 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# MonitorPad's runtime state lives in %LOCALAPPDATA%\MonitorPad, not here, so
+# there is nothing secret in this tree. These patterns are belt and braces in
+# case anyone ever drops a config beside the code: config.json holds the
+# access token that lets a device reconfigure the displays.
+config.json
+*.token

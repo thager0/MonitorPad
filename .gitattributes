@@ -1,0 +1,12 @@
+# Normalise to LF in the repository so checkouts are identical everywhere,
+# regardless of each machine's core.autocrlf setting.
+* text=auto eol=lf
+
+# Windows script hosts are happiest with CRLF, and these only ever run there.
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Never touch these.
+*.png binary
+*.ico binary

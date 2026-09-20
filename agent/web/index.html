@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MonitorPad">
+<meta name="theme-color" content="#0b1020">
+<title>MonitorPad</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<!-- The .ico carries 16-256px, which is what Windows wants for the app
+     window's title bar and taskbar button. -->
+<link rel="icon" href="monitorpad.ico" sizes="any">
+<link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- Pairing: shown when we have no token yet -->
+<section id="pair" class="screen" hidden>
+  <div class="pair-card">
+    <div class="logo" aria-hidden="true"></div>
+    <h1>MonitorPad</h1>
+    <p>Enter the 6-digit pairing PIN showing on your PC.</p>
+    <input id="pair-input" type="text" inputmode="numeric" autocapitalize="off"
+           autocorrect="off" spellcheck="false" autocomplete="one-time-code"
+           placeholder="000000">
+    <button id="pair-go" class="primary">Connect</button>
+    <p id="pair-error" class="error" role="alert" hidden></p>
+    <p class="fineprint">You can also paste the full pairing link if you
+       already have one.</p>
+  </div>
+</section>
+
+<!-- Main app -->
+<section id="app" class="screen" hidden>
+  <header class="topbar">
+    <div class="topbar-text">
+      <span class="eyebrow">Connected to</span>
+      <h1 id="host-name">…</h1>
+    </div>
+    <div class="topbar-actions">
+      <button id="identify" class="icon-btn" title="Identify monitors"
+              aria-label="Identify monitors">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5h18v11H3z"/><path d="M9 20h6"/><path d="M12 16v4"/></svg>
+      </button>
+      <button id="refresh" class="icon-btn" title="Refresh"
+              aria-label="Refresh">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-1.2 5"/><path d="M20 5v6h-6"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div id="banner" class="banner" role="status" hidden></div>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Arrangement</h2>
+        <span class="hint">Drag to rearrange</span>
+      </div>
+      <div id="stage" class="stage"></div>
+      <p id="stage-warning" class="warning" hidden></p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Displays</h2>
+        <button id="collapse-all" class="linkbtn" type="button">Collapse all</button>
+      </div>
+      <div id="monitors" class="monitors"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head"><h2>Profiles</h2></div>
+      <div id="profiles" class="profiles"></div>
+      <div class="profile-save">
+        <input id="profile-name" type="text" placeholder="Name this setup"
+               autocapitalize="words" maxlength="40">
+        <button id="profile-save" class="ghost">Save</button>
+      </div>
+    </section>
+
+    <div class="tail"></div>
+  </main>
+
+  <footer id="actionbar" class="actionbar" hidden>
+    <div class="actionbar-inner">
+      <span id="change-summary" class="change-summary"></span>
+      <div class="actionbar-buttons">
+        <button id="discard" class="ghost">Discard</button>
+        <button id="apply" class="primary">Apply</button>
+      </div>
+    </div>
+  </footer>
+</section>
+
+<!-- Confirm-or-revert overlay -->
+<div id="confirm" class="overlay" hidden>
+  <div class="confirm-card">
+    <h2>Keep these settings?</h2>
+    <p>Reverting automatically in <strong id="countdown">15</strong>s if you
+       don't respond.</p>
+    <div class="confirm-buttons">
+      <button id="confirm-revert" class="ghost">Revert now</button>
+      <button id="confirm-keep" class="primary">Keep</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
