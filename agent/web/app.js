@@ -988,9 +988,6 @@ function render() {
   const count = changedKeys.size;
   const bar = el('actionbar');
   bar.hidden = count === 0;
-  // The action bar is fixed to the bottom, so the page only needs to reserve
-  // room beneath its content while the bar is actually there.
-  document.body.classList.toggle('has-changes', count > 0);
   el('change-summary').textContent =
     count === 1 ? '1 display changed' : count + ' displays changed';
   el('apply').disabled = busy;

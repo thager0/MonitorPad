@@ -193,13 +193,23 @@ button { -webkit-tap-highlight-color: transparent; }
 
 /* ------------------------------------------------------------- chrome */
 
-/* Opaque, not frosted. A translucent bar with a backdrop-filter turns every
-   card that scrolls under it into a blurred smear, which on a phone reads as
-   the top of the app being out of focus. It also has to stay solid across
-   the status bar area in a home-screen app, where the page runs underneath. */
+/* App shell: the header and the action bar are fixed panes and only the
+   middle scrolls.
+ *
+ * This is not merely tidier. iOS blurs whatever sits near the top edge of a
+ * *scrolling* view, to keep the status bar legible over it -- so a header
+ * that belongs to the page scroller gets softened by the system no matter
+ * what we do to its background. Making it a sibling of the scroll container
+ * rather than content inside it takes it out of that treatment.
+ */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+}
+
 .topbar {
-  position: sticky;
-  top: 0;
+  flex: none;
   z-index: 20;
   display: flex;
   align-items: center;
@@ -288,18 +298,18 @@ body.offline .dot { background: var(--bad); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 main {
-  padding: var(--s4) calc(var(--safe-right) + var(--s4)) 0
-           calc(var(--safe-left) + var(--s4));
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
   max-width: 720px;
   margin: 0 auto;
+  padding: var(--s4) calc(var(--safe-right) + var(--s4))
+           calc(var(--safe-bottom) + var(--s4))
+           calc(var(--safe-left) + var(--s4));
 }
-
-/* Clearance for the fixed action bar, which only exists while there are
-   unapplied changes. Deliberately not animated: this is layout, and a
-   transition leaves it stuck at the old height whenever the window is not
-   being composited. */
-.tail { height: var(--s6); }
-body.has-changes .tail { height: 120px; }
 
 .panel { margin-bottom: var(--s6); }
 
@@ -689,15 +699,13 @@ button.badge.action:hover {
 
 /* ---------------------------------------------------------- actionbar */
 
+/* A pane of the shell, not an overlay: nothing has to be padded out of its
+   way, and it cannot cover the last card. */
 .actionbar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  flex: none;
   z-index: 30;
   padding: var(--s3) calc(var(--safe-right) + var(--s4))
            calc(var(--safe-bottom) + var(--s3)) calc(var(--safe-left) + var(--s4));
-  /* Opaque for the same reason as the top bar. */
   background: var(--bg);
   border-top: 1px solid var(--line);
 }
@@ -817,8 +825,6 @@ button.badge.action:hover {
   .row-label { font-size: 13px; }
   .field select { font-size: 13px; }
 
-  .tail { height: var(--s5); }
-  body.has-changes .tail { height: 84px; }
 }
 
 /* Shorter windows: give the arrangement less of the screen. */
