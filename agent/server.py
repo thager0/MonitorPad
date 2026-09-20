@@ -607,7 +607,13 @@ class Handler(BaseHTTPRequestHandler):
         log_debug("http: " + (fmt % args))
 
     def log_error(self, fmt, *args):
-        log_debug("http: " + (fmt % args))
+        message = fmt % args
+        if message.startswith("Request timed out"):
+            # Normal housekeeping, not a fault: an idle keep-alive connection
+            # being closed. Say so, or every reader of this log stops here.
+            log_debug("idle connection closed after {}s".format(self.timeout))
+            return
+        log_debug("http: " + message)
 
     # ---------------------------------------------------------- helpers
 
@@ -764,6 +770,10 @@ class Handler(BaseHTTPRequestHandler):
     def _static(self, path):
         if path in ("/", ""):
             path = "/index.html"
+        elif path == "/favicon.ico":
+            # Browsers ask for this regardless of the <link rel="icon">, and
+            # a 404 on every fresh session just clutters the log.
+            path = "/monitorpad.ico"
         # Resolve inside WEB_ROOT and refuse anything that escapes it.
         target = os.path.normpath(
             os.path.join(WEB_ROOT, path.lstrip("/").replace("/", os.sep)))
