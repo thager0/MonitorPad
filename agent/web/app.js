@@ -65,11 +65,13 @@ function collapsedState() {
   }
 }
 
-function isCollapsed(monitor, want) {
+function isCollapsed(monitor) {
   const stored = collapsedState()[monitor.key];
   if (typeof stored === 'boolean') return stored;
-  // Until told otherwise, fold away the ones with nothing to adjust.
-  return !isPresent(monitor) || !want.enabled;
+  // Folded by default. The header already carries the port, the current
+  // mode and the badges, so the list reads as a summary of the whole setup
+  // and you open only the display you came to change.
+  return true;
 }
 
 function setCollapsed(key, value) {
@@ -94,10 +96,7 @@ function setAllCollapsed(value) {
 
 function anyExpanded() {
   if (!state) return false;
-  return state.monitors.some((monitor) => {
-    const want = working.get(monitor.key);
-    return want && !isCollapsed(monitor, want);
-  });
+  return state.monitors.some((monitor) => !isCollapsed(monitor));
 }
 
 /* ------------------------------------------------------------------- api */
@@ -725,12 +724,12 @@ function renderCard(monitor, index) {
   rows.className = 'rows';
   rows.id = 'rows-' + monitor.key;
 
-  const shut = isCollapsed(monitor, want);
+  const shut = isCollapsed(monitor);
   card.classList.toggle('collapsed', shut);
   toggle.setAttribute('aria-expanded', String(!shut));
   toggle.setAttribute('aria-controls', rows.id);
   toggle.addEventListener('click', () => {
-    setCollapsed(monitor.key, !isCollapsed(monitor, want));
+    setCollapsed(monitor.key, !isCollapsed(monitor));
     render();
   });
 

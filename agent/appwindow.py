@@ -188,21 +188,26 @@ def open_app_window(url, reuse=True):
     if reuse and focus_existing(browser):
         return "focused"
 
-    width, height = _window_size()
+    # Only size the window the very first time. Passing --window-size on
+    # every launch would overrule whatever size the user dragged it to and
+    # reset it on each open.
+    first_run = not os.path.isdir(PROFILE_DIR)
     os.makedirs(PROFILE_DIR, exist_ok=True)
+
+    args = [
+        browser,
+        "--app=" + url,
+        "--user-data-dir=" + PROFILE_DIR,
+        "--no-first-run",
+        "--no-default-browser-check",
+    ]
+    if first_run:
+        width, height = _window_size()
+        args.append("--window-size={},{}".format(width, height))
+
     try:
-        process = subprocess.Popen(
-            [
-                browser,
-                "--app=" + url,
-                "--user-data-dir=" + PROFILE_DIR,
-                "--window-size={},{}".format(width, height),
-                "--no-first-run",
-                "--no-default-browser-check",
-            ],
-            creationflags=_NO_WINDOW,
-            close_fds=True,
-        )
+        process = subprocess.Popen(args, creationflags=_NO_WINDOW,
+                                   close_fds=True)
     except OSError:
         webbrowser.open(url)
         return "browser"

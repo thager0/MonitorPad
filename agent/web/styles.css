@@ -52,6 +52,14 @@
   --chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'><path d='M2.5 4.5L6 8l3.5-3.5' fill='none' stroke='black' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'/></svg>");
 
   --safe-top: env(safe-area-inset-top, 0px);
+  /* On notch / Dynamic Island devices iOS keeps a softened band under the
+     status bar, and anything drawn into it renders blurred no matter what
+     we do. Measured on an iPhone 16 Pro it reaches about 103 CSS px, with
+     the safe inset at 59 -- so roughly 0.9x the inset past the inset gives
+     header content somewhere sharp to start. Scaling by the inset rather
+     than hard-coding pixels leaves a desktop window, where the inset is 0,
+     with the ordinary --s3 of padding. */
+  --header-clearance: max(var(--s3), var(--safe-top) * 0.9);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
@@ -126,7 +134,7 @@ button { -webkit-tap-highlight-color: transparent; }
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  padding: calc(var(--safe-top) + var(--s6)) var(--s5)
+  padding: calc(var(--safe-top) + var(--header-clearance)) var(--s5)
            calc(var(--safe-bottom) + var(--s6));
 }
 
@@ -215,7 +223,7 @@ button { -webkit-tap-highlight-color: transparent; }
   align-items: center;
   justify-content: space-between;
   gap: var(--s3);
-  padding: calc(var(--safe-top) + var(--s3))
+  padding: calc(var(--safe-top) + var(--header-clearance))
            calc(var(--safe-right) + var(--s4)) var(--s3)
            calc(var(--safe-left) + var(--s4));
   background: var(--bg);

@@ -70,6 +70,9 @@ two to a line and the spacing comes in, so a typical set of displays fits
 without scrolling. The phone keeps the roomier version, where controls have to
 stay finger-sized.
 
+Only the first launch picks a window size; after that it reopens at whatever
+size you left it.
+
 **Pin it to the taskbar** by finding MonitorPad in the Start Menu and choosing
 Pin to taskbar. From then on it launches like any installed app, starting the
 agent first if it is not already running.
@@ -189,10 +192,10 @@ Tap a display's name to fold it away; tap again to open it. The header keeps
 showing the things worth knowing at a glance — the port, the current mode,
 and the badges — so a folded card is still informative.
 
-Each display remembers whether you left it open, per device, so the phone and
-the PC can differ. Ones that are switched off start folded, since there is
-nothing to adjust until they are on. **Collapse all** in the Displays header
-folds or unfolds everything at once.
+Displays start folded, so the list opens as a summary of the whole setup and
+you unfold only the one you came to change. Each remembers what you left it
+as, per device, so the phone and the PC can differ. **Collapse all** in the
+Displays header folds or unfolds everything at once.
 
 ### Nothing applies until you tap Apply
 
