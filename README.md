@@ -43,7 +43,8 @@ Double-click **`start.cmd`**. MonitorPad appears in the notification area
 | **Apply "…"** | One-tap for each saved profile. |
 | **Start when I sign in** | Toggles auto-start (see below). |
 | **Add to Start Menu** | Toggles the shortcut, so MonitorPad launches like any other app. |
-| **Open config folder** | Where the token and profiles live. |
+| **View log** | Opens the agent's log file (see below). |
+| **Open config folder** | Where the token, profiles and log live. |
 | **Quit MonitorPad** | Stops the agent, rolling back anything unconfirmed. |
 
 Double-clicking the icon opens the app window directly.
@@ -343,6 +344,29 @@ every 8 seconds; pull the refresh button top right to force it.
 header is green while the agent is answering and red when it is not. The app
 says so once when the connection drops rather than repeating itself every
 poll.
+
+### The log
+
+The agent writes to `%LOCALAPPDATA%\MonitorPad\monitorpad.log` — **View log**
+in the tray menu opens it. It rotates at 512 KB and keeps three old files.
+
+Every request is recorded with its result, how long it took and which device
+made it, alongside each apply, rejection, rollback and pairing. That trail is
+what makes an intermittent fault diagnosable after it has happened: a gap in
+the polling, a burst of retries, or an apply that ran slowly all show up
+plainly.
+
+```
+19:44:17  INFO    MonitorPad starting on 0.0.0.0:8777  (python 3.14.3, pid 984)
+19:44:17  INFO    Reachable at: 192.168.68.50
+19:44:20  DEBUG   GET /api/state -> 200 in 51ms  [192.168.68.61]
+19:44:20  INFO    Rejected /api/apply: Unknown display nope.
+19:44:20  WARNING client [192.168.68.61]: retried GET /api/state after: Load failed
+```
+
+That last kind of line is the phone reporting a request that failed before it
+reached the PC. The agent cannot see those itself — they never arrive — so
+the app tells it after the retry succeeds.
 
 **The tray icon vanished.** If Explorer restarted, MonitorPad re-adds itself
 automatically. If it is genuinely gone, check whether the process is still

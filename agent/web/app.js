@@ -101,7 +101,23 @@ function anyExpanded() {
 
 /* ------------------------------------------------------------------- api */
 
-async function api(path, body) {
+// Tell the agent about a request that failed before it could arrive, so the
+// agent's log shows the gap from the phone's side too. Best effort by
+// definition -- if the network is still down this goes nowhere.
+function reportToAgent(message) {
+  if (!token) return;
+  fetch('/api/client-log', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ message }),
+    keepalive: true,
+  }).catch(() => { /* nothing more to be done */ });
+}
+
+async function once(path, body) {
   const options = {
     method: body === undefined ? 'GET' : 'POST',
     headers: { 'Authorization': 'Bearer ' + token },
@@ -120,9 +136,53 @@ async function api(path, body) {
       token = null;
       showPairing('That token was rejected. Pair again.');
     }
-    throw new Error(message);
+    const error = new Error(message);
+    error.fromServer = true;
+    throw error;
   }
   return payload;
+}
+
+function friendlyNetworkError(error) {
+  // Safari words a failed connection as "Load failed", which tells nobody
+  // anything. Say what it actually means.
+  const raw = (error && error.message) || String(error);
+  if (/load failed|network|fetch/i.test(raw)) {
+    return 'Could not reach the PC. Check it is awake and on the same Wi-Fi.';
+  }
+  return raw;
+}
+
+async function api(path, body) {
+  const isRead = body === undefined;
+  try {
+    return await once(path, body);
+  } catch (error) {
+    // A reply that arrived is the agent's answer; repeating would not change
+    // it. Nothing arriving means the connection failed -- Safari keeps
+    // sockets alive across a lock or a Wi-Fi handover and finds them dead on
+    // the next request. A fresh connection usually just works.
+    //
+    // Only reads are retried. A POST that was received but whose reply was
+    // lost would be applied twice, and a second /api/apply would arm its
+    // watchdog against the already-changed state -- so a later revert would
+    // restore the wrong thing.
+    if (error.fromServer || !isRead) {
+      if (!error.fromServer) error.message = friendlyNetworkError(error);
+      throw error;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    let result;
+    try {
+      result = await once(path, body);
+    } catch (second) {
+      if (!second.fromServer) second.message = friendlyNetworkError(second);
+      throw second;
+    }
+    reportToAgent('retried GET ' + path + ' after: ' + (error.message || error));
+    return result;
+  }
 }
 
 /* --------------------------------------------------------------- pairing */

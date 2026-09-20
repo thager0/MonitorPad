@@ -11,6 +11,8 @@ startup.
 import argparse
 import hmac
 import json
+import logging
+import logging.handlers
 import mimetypes
 import os
 import secrets
@@ -19,7 +21,6 @@ import subprocess
 import sys
 import threading
 import time
-import traceback
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse
 
@@ -31,6 +32,7 @@ WEB_ROOT = os.path.join(HERE, "web")
 CONFIG_DIR = os.path.join(
     os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "MonitorPad")
 CONFIG_PATH = os.path.join(CONFIG_DIR, "config.json")
+LOG_PATH = os.path.join(CONFIG_DIR, "monitorpad.log")
 
 DEFAULT_PORT = 8777
 # How long the phone has to confirm a layout change before it is rolled back.
@@ -207,8 +209,54 @@ PENDING = Pending()
 PIN = PairingPin()
 
 
+def _build_logger():
+    """Log to a rotating file beside the config, and to the console if there
+    is one. The tray app has no console, so the file is the only record of
+    what happened -- which is the whole point of having it."""
+    logger = logging.getLogger("monitorpad")
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+    if logger.handlers:
+        return logger
+
+    fmt = logging.Formatter("%(asctime)s.%(msecs)03d  %(levelname)-7s "
+                            "%(message)s", "%Y-%m-%d %H:%M:%S")
+    try:
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        rotating = logging.handlers.RotatingFileHandler(
+            LOG_PATH, maxBytes=512 * 1024, backupCount=3, encoding="utf-8")
+        rotating.setFormatter(fmt)
+        rotating.setLevel(logging.DEBUG)
+        logger.addHandler(rotating)
+    except OSError:
+        pass  # A read-only disk must not stop the agent from running.
+
+    # Some Python builds give a windowless process no stdout at all.
+    if getattr(sys, "stdout", None) is not None:
+        console = logging.StreamHandler(sys.stdout)
+        console.setFormatter(fmt)
+        console.setLevel(logging.INFO)
+        logger.addHandler(console)
+    return logger
+
+
+LOGGER = _build_logger()
+
+
 def log(message):
-    print("[{}] {}".format(time.strftime("%H:%M:%S"), message), flush=True)
+    LOGGER.info(message)
+
+
+def log_debug(message):
+    LOGGER.debug(message)
+
+
+def log_warning(message):
+    LOGGER.warning(message)
+
+
+def log_exception(message):
+    LOGGER.error(message, exc_info=True)
 
 
 # ----------------------------------------------------------------- operations
@@ -541,13 +589,33 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "MonitorPad"
     protocol_version = "HTTP/1.1"
 
+    # HTTP/1.1 keeps connections alive, and without a timeout the handler
+    # blocks in readline() waiting for a request that may never come -- one
+    # thread pinned per connection, forever. A phone that sleeps, changes
+    # network or is swiped away leaves its connections half-open, so they
+    # accumulate all day and the client is left holding sockets the server
+    # will never answer on. Closing idle ones costs nothing: the client
+    # simply opens a fresh connection for its next request.
+    timeout = 30
+
+    def log_request(self, *args):
+        pass  # _serve logs each request with its timing instead.
+
     def log_message(self, fmt, *args):
-        pass  # Too chatty; real events are logged explicitly.
+        # Catch the stdlib's own notes -- idle timeouts, malformed requests
+        # -- which would otherwise vanish with no console attached.
+        log_debug("http: " + (fmt % args))
+
+    def log_error(self, fmt, *args):
+        log_debug("http: " + (fmt % args))
 
     # ---------------------------------------------------------- helpers
 
+    _status = 0
+
     def _send(self, status, body=b"", content_type="application/json",
               extra=None):
+        self._status = status
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
@@ -587,20 +655,49 @@ class Handler(BaseHTTPRequestHandler):
 
     # ------------------------------------------------------------ routes
 
-    def do_GET(self):
+    def _serve(self, method):
+        """Dispatch one request and record how it went.
+
+        Every request is logged with its outcome and duration. That trail is
+        what makes an intermittent fault diagnosable after the fact: a gap in
+        the poll, a burst of retries, or a slow apply all show up plainly.
+        """
         path = urlparse(self.path).path
-        if path.startswith("/api/"):
-            return self._api("GET", path)
-        return self._static(path)
+        started = time.perf_counter()
+        self._status = 0
+        try:
+            if path.startswith("/api/"):
+                self._api(method, path)
+            elif method == "POST":
+                self._error(404, "Not found")
+            else:
+                self._static(path)
+        except (BrokenPipeError, ConnectionResetError) as exc:
+            # The client vanished mid-reply: a phone locking, or Wi-Fi
+            # dropping. Nothing is wrong on this side, but it is worth
+            # seeing when tracking down flaky requests.
+            log_debug("{} {} aborted by client ({})".format(
+                method, path, type(exc).__name__))
+            self.close_connection = True
+            return
+        finally:
+            elapsed = (time.perf_counter() - started) * 1000
+            if self._status and self._status >= 400:
+                log_warning("{} {} -> {} in {:.0f}ms".format(
+                    method, path, self._status, elapsed))
+            elif path.startswith("/api/"):
+                log_debug("{} {} -> {} in {:.0f}ms  [{}]".format(
+                    method, path, self._status, elapsed,
+                    self.address_string()))
+
+    def do_GET(self):
+        return self._serve("GET")
 
     def do_HEAD(self):
-        return self.do_GET()
+        return self._serve("GET")
 
     def do_POST(self):
-        path = urlparse(self.path).path
-        if path.startswith("/api/"):
-            return self._api("POST", path)
-        return self._error(404, "Not found")
+        return self._serve("POST")
 
     def _api(self, method, path):
         if path == "/api/ping":
@@ -640,6 +737,14 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, build_state())
             if method == "POST" and path == "/api/identify":
                 return self._json(200, identify())
+            if method == "POST" and path == "/api/client-log":
+                # The phone reporting a request that failed at the network
+                # layer. The agent never sees those itself -- they never
+                # arrive -- so without this they are invisible here.
+                note = str(body.get("message", ""))[:300]
+                log_warning("client [{}]: {}".format(
+                    self.address_string(), note))
+                return self._json(200, {"logged": True})
             if method == "POST" and path == "/api/profile/save":
                 save_profile(body.get("name"))
                 return self._json(200, build_state())
@@ -650,10 +755,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(200, build_state())
             return self._error(404, "No such endpoint.")
         except display.DisplayError as exc:
-            log("Rejected: {}".format(exc))
+            log("Rejected {}: {}".format(path, exc))
             return self._error(400, str(exc))
         except Exception as exc:  # noqa: BLE001 - surface anything unexpected
-            traceback.print_exc()
+            log_exception("Unhandled error serving {} {}".format(method, path))
             return self._error(500, "Agent error: {}".format(exc))
 
     def _static(self, path):
@@ -699,6 +804,13 @@ def build_server(host="0.0.0.0", port=DEFAULT_PORT):
     """Create the HTTP server without starting it."""
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.daemon_threads = True
+    # A clear marker for the start of each run, so a log covering several
+    # sessions can be read back without guessing where one ends.
+    log("=" * 60)
+    log("MonitorPad starting on {}:{}  (python {}, pid {})".format(
+        host, port, sys.version.split()[0], os.getpid()))
+    log("Reachable at: {}".format(
+        ", ".join(lan_addresses()) or "no LAN address found"))
     return httpd
 
 
@@ -723,6 +835,7 @@ def shut_down(httpd):
     except Exception:  # noqa: BLE001 - already stopping
         pass
     httpd.server_close()
+    log("MonitorPad stopped.")
 
 
 def pairing_url(port):

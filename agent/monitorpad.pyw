@@ -121,6 +121,8 @@ class App:
             {"id": tray_module.ID_SHORTCUT,
              "label": "Add to Start Menu", "checked": self.shortcut_exists(),
              "action": self.toggle_shortcut},
+            {"id": tray_module.ID_LOG, "label": "View log",
+             "action": self.open_log},
             {"id": tray_module.ID_CONFIG, "label": "Open config folder",
              "action": self.open_config},
             None,
@@ -230,6 +232,16 @@ class App:
         except shortcut.ShortcutError as exc:
             self.tray.balloon("Could not change the shortcut", str(exc),
                               tray_module.NIIF_ERROR)
+
+    def open_log(self):
+        if not os.path.isfile(server.LOG_PATH):
+            self.tray.balloon("No log yet",
+                              "Nothing has been written to it so far.")
+            return
+        # Notepad rather than the default handler: .log is often unassociated,
+        # which would otherwise pop the "how do you want to open this" dialog.
+        subprocess.Popen(["notepad.exe", server.LOG_PATH],
+                         creationflags=_NO_WINDOW)
 
     def open_config(self):
         os.makedirs(server.CONFIG_DIR, exist_ok=True)

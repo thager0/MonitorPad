@@ -92,6 +92,7 @@ ID_QUIT = 7
 ID_COPY_LINK = 8
 ID_OPEN_BROWSER = 9
 ID_SHORTCUT = 10
+ID_LOG = 11
 ID_PROFILE_BASE = 100   # profiles occupy ID_PROFILE_BASE .. +49
 
 # ------------------------------------------------------------------ structures
