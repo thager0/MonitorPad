@@ -53,13 +53,20 @@
 
   --safe-top: env(safe-area-inset-top, 0px);
   /* On notch / Dynamic Island devices iOS keeps a softened band under the
-     status bar, and anything drawn into it renders blurred no matter what
-     we do. Measured on an iPhone 16 Pro it reaches about 103 CSS px, with
-     the safe inset at 59 -- so roughly 0.9x the inset past the inset gives
-     header content somewhere sharp to start. Scaling by the inset rather
-     than hard-coding pixels leaves a desktop window, where the inset is 0,
-     with the ordinary --s3 of padding. */
-  --header-clearance: max(var(--s3), var(--safe-top) * 0.9);
+     status bar, and anything drawn into it renders blurred however it is
+     styled. Header content has to begin below the band.
+   *
+     Where it ends was measured by photographing the same header at two
+     heights and comparing the icon row by row -- identical pixels, so the
+     only variable is position on screen. The two runs diverge sharply above
+     CSS y 96 and are indistinguishable below it, which puts the edge there.
+     The safe inset on that device is 59, so the band reaches about 0.65x
+     the inset past the inset itself.
+   *
+     Scaling by the inset rather than hard-coding 96px keeps this sane on
+     devices with a different inset, and leaves a desktop window -- inset 0
+     -- with nothing but its ordinary --s3 of padding. */
+  --header-clearance: max(var(--s3), var(--safe-top) * 0.65);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
