@@ -336,6 +336,11 @@ backgrounded when the change landed, reopen it faster, or lengthen
 **The app looks stale after changing something in Windows itself.** It polls
 every 8 seconds; pull the refresh button top right to force it.
 
+**Is it still talking to the PC?** The dot beside the computer's name in the
+header is green while the agent is answering and red when it is not. The app
+says so once when the connection drops rather than repeating itself every
+poll.
+
 **The tray icon vanished.** If Explorer restarted, MonitorPad re-adds itself
 automatically. If it is genuinely gone, check whether the process is still
 alive — `Get-Process pythonw` — and look in the tray overflow menu, since

@@ -1068,8 +1068,14 @@ async function runProfile(name) {
 async function refresh() {
   try {
     adoptState(await api('/api/state'), true);
+    document.body.classList.remove('offline');
   } catch (error) {
-    if (token) toast(error.message, true);
+    // Only say something the first time. A polling loop against an agent
+    // that has stopped would otherwise fire a toast every few seconds; the
+    // dot beside the PC name carries the state from then on.
+    const wasOnline = !document.body.classList.contains('offline');
+    document.body.classList.add('offline');
+    if (token && wasOnline) toast(error.message, true);
   }
 }
 

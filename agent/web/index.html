@@ -6,7 +6,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="MonitorPad">
-<meta name="theme-color" content="#0b1020">
+<!-- iOS tints the status bar area behind a home-screen app with theme-color,
+     so it has to follow the scheme or the top of the screen fights the page. -->
+<meta name="theme-color" content="#f2f4fa" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)">
 <title>MonitorPad</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -37,9 +40,16 @@
 <!-- Main app -->
 <section id="app" class="screen" hidden>
   <header class="topbar">
-    <div class="topbar-text">
-      <span class="eyebrow">Connected to</span>
-      <h1 id="host-name">…</h1>
+    <div class="brand">
+      <img class="brand-icon" src="icon-192.png" alt="" width="192"
+           height="192" decoding="async">
+      <div class="brand-text">
+        <h1>MonitorPad</h1>
+        <span class="brand-sub">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="host-name">…</span>
+        </span>
+      </div>
     </div>
     <div class="topbar-actions">
       <button id="identify" class="icon-btn" title="Identify monitors"

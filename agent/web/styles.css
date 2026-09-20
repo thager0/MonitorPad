@@ -193,20 +193,22 @@ button { -webkit-tap-highlight-color: transparent; }
 
 /* ------------------------------------------------------------- chrome */
 
+/* Opaque, not frosted. A translucent bar with a backdrop-filter turns every
+   card that scrolls under it into a blurred smear, which on a phone reads as
+   the top of the app being out of focus. It also has to stay solid across
+   the status bar area in a home-screen app, where the page runs underneath. */
 .topbar {
   position: sticky;
   top: 0;
   z-index: 20;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--s3);
   padding: calc(var(--safe-top) + var(--s3))
            calc(var(--safe-right) + var(--s4)) var(--s3)
            calc(var(--safe-left) + var(--s4));
-  background: color-mix(in srgb, var(--bg) 86%, transparent);
-  backdrop-filter: saturate(180%) blur(18px);
-  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  background: var(--bg);
   border-bottom: 1px solid var(--line-soft);
 }
 
@@ -218,8 +220,48 @@ button { -webkit-tap-highlight-color: transparent; }
   color: var(--text-dim);
 }
 
-.topbar h1 { font-size: var(--t-xl); }
-.topbar-actions { display: flex; gap: var(--s2); }
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-width: 0;
+}
+
+.brand-icon {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 10px;
+  display: block;
+}
+
+.brand-text { min-width: 0; }
+.brand-text h1 { font-size: var(--t-xl); line-height: 1.15; }
+
+.brand-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: var(--t-sm);
+  color: var(--text-dim);
+  min-width: 0;
+}
+.brand-sub > span:last-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--good);
+}
+body.offline .dot { background: var(--bad); }
+
+.topbar-actions { display: flex; gap: var(--s2); flex: none; }
 
 .icon-btn {
   width: 40px;
@@ -655,9 +697,8 @@ button.badge.action:hover {
   z-index: 30;
   padding: var(--s3) calc(var(--safe-right) + var(--s4))
            calc(var(--safe-bottom) + var(--s3)) calc(var(--safe-left) + var(--s4));
-  background: color-mix(in srgb, var(--bg) 88%, transparent);
-  backdrop-filter: saturate(180%) blur(18px);
-  -webkit-backdrop-filter: saturate(180%) blur(18px);
+  /* Opaque for the same reason as the top bar. */
+  background: var(--bg);
   border-top: 1px solid var(--line);
 }
 .actionbar-inner {
@@ -744,7 +785,8 @@ button.badge.action:hover {
   }
 
   main { padding-top: var(--s3); }
-  .topbar h1 { font-size: 18px; }
+  .brand-text h1 { font-size: 17px; }
+  .brand-icon { width: 30px; height: 30px; border-radius: 8px; }
   .icon-btn { width: 34px; height: 34px; }
   .icon-btn svg { width: 17px; height: 17px; }
 
