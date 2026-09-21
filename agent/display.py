@@ -684,18 +684,31 @@ def apply_layout(changes, commit=True, validate=True):
             entry["x"] -= off_x
             entry["y"] -= off_y
 
+        # Two passes, each using the API that handles it reliably.
+        #
+        # Modes -- resolution, refresh, rotation -- go through
+        # ChangeDisplaySettingsEx. Arrangement -- positions and which display
+        # is primary -- goes through CCD, where "primary" is simply whichever
+        # source sits at (0, 0). ChangeDisplaySettingsEx's CDS_SET_PRIMARY
+        # refuses outright to move the primary between displays on different
+        # graphics adapters, which is an ordinary setup; CCD does it fine.
         staged = []
         for key, entry in plan.items():
             mon = entry["mon"]
+            current = mon["current"] or {}
+            needs_mode = (
+                (entry["width"] and (entry["width"], entry["height"])
+                 != (current.get("width"), current.get("height")))
+                or (entry["hz"] and entry["hz"] != current.get("hz"))
+                or entry["rotation"] != mon["rotation"])
+            if not needs_mode:
+                continue
             dm = _current_devmode(mon["gdiName"])
             if dm is None:
                 raise DisplayError(
                     "Could not read current settings for {}.".format(
                         mon["label"]))
-            dm.dmFields = ccd.DM_POSITION | ccd.DM_DISPLAYORIENTATION
-            dm.dmPosition.x = entry["x"]
-            dm.dmPosition.y = entry["y"]
-
+            dm.dmFields = ccd.DM_DISPLAYORIENTATION
             dm.dmDisplayOrientation = ccd.ROTATION_TO_DMDO[entry["rotation"]]
 
             if entry["width"] and entry["height"]:
@@ -711,29 +724,86 @@ def apply_layout(changes, commit=True, validate=True):
                 dm.dmDisplayFrequency = entry["hz"]
                 dm.dmFields |= ccd.DM_DISPLAYFREQUENCY
 
-            flags = ccd.CDS_UPDATEREGISTRY | ccd.CDS_NORESET
-            if entry["primary"]:
-                flags |= ccd.CDS_SET_PRIMARY
+            staged.append((mon, dm, ccd.CDS_UPDATEREGISTRY | ccd.CDS_NORESET))
 
-            rc = _stage(mon["gdiName"], dm, flags | ccd.CDS_TEST)
-            if rc != 0:
-                raise DisplayError("{}: {}".format(
-                    mon["label"], ccd.DISP_CHANGE.get(rc, "error")))
-            staged.append((mon, dm, flags))
-
-        for mon, dm, flags in staged:
-            rc = _stage(mon["gdiName"], dm, flags)
-            if rc != 0:
-                ccd.user32.ChangeDisplaySettingsExW(None, None, None, 0, None)
-                raise DisplayError("{}: {}".format(
-                    mon["label"], ccd.DISP_CHANGE.get(rc, "error")))
+        # No per-display CDS_TEST pre-flight: it judges each display alone
+        # against the layout as it stands now, so it rejects changes that are
+        # only valid as a whole. Impossible modes are caught above against the
+        # driver's mode list, and the staging calls report anything refused.
+        if staged:
+            # What each display is running now, captured before anything is
+            # written, so a failure part-way can put the registry back.
+            live = {mon["gdiName"]: _current_devmode(mon["gdiName"])
+                    for mon, _dm, _flags in staged}
+            done = []
+            for mon, dm, flags in staged:
+                rc = _stage(mon["gdiName"], dm, flags)
+                if rc != 0:
+                    # Never commit here. The registry may hold older values
+                    # than the screens are actually running -- a refresh rate
+                    # chosen in Windows Settings, say -- and committing would
+                    # apply those. Rewrite what was already staged back to the
+                    # live settings instead, and leave the screens untouched.
+                    for undo in done:
+                        original = live.get(undo["gdiName"])
+                        if original is not None:
+                            _stage(undo["gdiName"], original,
+                                   ccd.CDS_UPDATEREGISTRY | ccd.CDS_NORESET)
+                    raise DisplayError(
+                        "Windows refused the new mode for {} ({}).".format(
+                            mon["label"], ccd.DISP_CHANGE.get(rc, rc)))
+                done.append(mon)
+            if commit:
+                rc = ccd.user32.ChangeDisplaySettingsExW(None, None, None, 0,
+                                                         None)
+                if rc != 0:
+                    raise DisplayError(
+                        "Windows refused the new modes ({}).".format(
+                            ccd.DISP_CHANGE.get(rc, rc)))
 
         if commit:
-            rc = ccd.user32.ChangeDisplaySettingsExW(None, None, None, 0, None)
-            if rc != 0:
-                raise DisplayError("Applying the layout failed: {}".format(
-                    ccd.DISP_CHANGE.get(rc, "error")))
+            _arrange(plan)
         return list_monitors()
+
+
+def _arrange(plan):
+    """Put every display where the plan says, primary at the origin.
+
+    Done through CCD by moving source modes: the display whose source lands
+    on (0, 0) is the primary, so no separate "set primary" call exists to
+    fail. Duplicated displays share a source and so move together.
+    """
+    wanted = {(entry["mon"]["_adapterId"], entry["mon"]["_targetId"]):
+              (entry["x"], entry["y"]) for entry in plan.values()}
+
+    paths, modes = ccd.query_display_config(ccd.QDC_ONLY_ACTIVE_PATHS)
+    invalid = ccd.DISPLAYCONFIG_PATH_MODE_IDX_INVALID
+    moved = False
+    for path in paths:
+        key = (path.targetInfo.adapterId.key(), int(path.targetInfo.id))
+        if key not in wanted:
+            continue
+        index = path.sourceInfo.modeInfoIdx
+        if index == invalid or index >= len(modes):
+            continue
+        source = modes[index].u.sourceMode
+        x, y = wanted[key]
+        if (source.position.x, source.position.y) != (x, y):
+            source.position.x, source.position.y = x, y
+            moved = True
+
+    if not moved:
+        return
+
+    path_array = (ccd.DISPLAYCONFIG_PATH_INFO * len(paths))(*paths)
+    mode_array = (ccd.DISPLAYCONFIG_MODE_INFO * len(modes))(*modes)
+    rc = ccd.user32.SetDisplayConfig(
+        len(paths), path_array, len(modes), mode_array,
+        ccd.SDC_APPLY | ccd.SDC_USE_SUPPLIED_DISPLAY_CONFIG
+        | ccd.SDC_ALLOW_CHANGES | ccd.SDC_SAVE_TO_DATABASE)
+    if rc != ccd.ERROR_SUCCESS:
+        raise DisplayError("Windows refused the new arrangement ({}).".format(
+            ccd.win32_error(rc)))
 
 
 # ------------------------------------------------------------------ snapshot

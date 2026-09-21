@@ -489,6 +489,13 @@ def apply_batch(body):
     hdr = body.get("hdr") or {}
     mirror = body.get("mirror") or {}
 
+    # Record what was asked for, not just whether it worked -- a rejection
+    # in the log is little use without the request that caused it.
+    log("Apply requested: {}".format(json.dumps(
+        {k: v for k, v in (("enable", enable), ("layout", layout),
+                           ("hdr", hdr), ("mirror", mirror)) if v},
+        sort_keys=True)))
+
     if not (enable or layout or hdr or mirror):
         raise display.DisplayError("Nothing to apply.")
 
