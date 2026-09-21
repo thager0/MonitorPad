@@ -137,7 +137,7 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .screen { display: block; }
 
-#pair {
+#pair, #unreachable {
   min-height: 100dvh;
   display: grid;
   place-items: center;

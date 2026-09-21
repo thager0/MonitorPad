@@ -11,6 +11,9 @@
 
 const STORE_TOKEN = 'monitorpad.token';
 const STORE_COLLAPSED = 'monitorpad.collapsed';
+// Remembered so the offline screen can name the PC even when
+// it cannot be reached to ask.
+const STORE_HOST = 'monitorpad.host';
 const POLL_MS = 8000;
 
 const el = (id) => document.getElementById(id);
@@ -199,6 +202,7 @@ function extractToken(raw) {
 
 function showPairing(message) {
   el('app').hidden = true;
+  el('unreachable').hidden = true;
   el('pair').hidden = false;
   const error = el('pair-error');
   error.hidden = !message;
@@ -1121,17 +1125,60 @@ async function runProfile(name) {
   });
 }
 
+// The build this page was served as. The agent stamps it in when it serves
+// index.html, so a cached copy carries the build it was cached at.
+const APP_BUILD = (() => {
+  const meta = document.querySelector('meta[name="monitorpad-build"]');
+  return meta ? meta.content : '';
+})();
+
+async function refreshIfOutdated(build) {
+  // The interface is cached hard so it opens away from home. That must not
+  // mean running an old copy once back in range, so when the agent reports a
+  // build we do not have, pull a fresh page in and restart.
+  if (!build || !APP_BUILD || build === APP_BUILD) return false;
+  try {
+    await fetch('index.html', { cache: 'reload' });
+  } catch (_) {
+    return false;  // no point reloading into the same cached copy
+  }
+  location.reload();
+  return true;
+}
+
+function showUnreachable(show) {
+  const screen = el('unreachable');
+  if (show) {
+    const host = localStorage.getItem(STORE_HOST);
+    el('unreachable-host').textContent = host || 'your PC';
+    el('app').hidden = true;
+    screen.hidden = false;
+  } else {
+    screen.hidden = true;
+    if (token) el('app').hidden = false;
+  }
+}
+
 async function refresh() {
   try {
     adoptState(await api('/api/state'), true);
     document.body.classList.remove('offline');
+    showUnreachable(false);
+    if (state && state.host) localStorage.setItem(STORE_HOST, state.host);
+    if (await refreshIfOutdated(state && state.build)) return;
   } catch (error) {
     // Only say something the first time. A polling loop against an agent
     // that has stopped would otherwise fire a toast every few seconds; the
     // dot beside the PC name carries the state from then on.
     const wasOnline = !document.body.classList.contains('offline');
     document.body.classList.add('offline');
-    if (token && wasOnline) toast(error.message, true);
+    // Never having reached the agent means there is nothing to show behind a
+    // toast, so say plainly what is wrong instead of an empty interface.
+    if (state === null) {
+      showUnreachable(true);
+    } else if (token && wasOnline) {
+      toast(error.message, true);
+    }
   }
 }
 
@@ -1164,6 +1211,15 @@ el('identify').addEventListener('click', () => guard(async () => {
 }));
 
 el('apply').addEventListener('click', applyChanges);
+
+el('unreachable-retry').addEventListener('click', async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = 'Trying...';
+  await refresh();
+  button.disabled = false;
+  button.textContent = 'Try again';
+});
 
 el('collapse-all').addEventListener('click', () => {
   setAllCollapsed(anyExpanded());

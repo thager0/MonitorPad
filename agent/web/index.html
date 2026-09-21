@@ -11,13 +11,14 @@
 <meta name="theme-color" content="#f2f4fa" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0b1020" media="(prefers-color-scheme: dark)">
 <title>MonitorPad</title>
+<meta name="monitorpad-build" content="{{BUILD}}">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-180.png">
 <!-- The .ico carries 16-256px, which is what Windows wants for the app
      window's title bar and taskbar button. -->
 <link rel="icon" href="monitorpad.ico" sizes="any">
 <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v={{BUILD}}">
 </head>
 <body>
 
@@ -34,6 +35,22 @@
     <p id="pair-error" class="error" role="alert" hidden></p>
     <p class="fineprint">You can also paste the full pairing link if you
        already have one.</p>
+  </div>
+</section>
+
+<!-- Shown when the agent cannot be reached at all. The interface is cached,
+     so this appears instead of a blank screen when away from home. -->
+<section id="unreachable" class="screen" hidden>
+  <div class="pair-card">
+    <div class="logo" aria-hidden="true"></div>
+    <h1>Can't reach <span id="unreachable-host">your PC</span></h1>
+    <p id="unreachable-detail">
+      MonitorPad talks to your PC over your home network, so it only works
+      while you are on the same Wi-Fi.
+    </p>
+    <button id="unreachable-retry" class="primary">Try again</button>
+    <p class="fineprint">Still not working at home? Check the PC is awake and
+       MonitorPad is running in its system tray.</p>
   </div>
 </section>
 
@@ -121,6 +138,6 @@
 
 <div id="toast" class="toast" role="status" hidden></div>
 
-<script src="app.js"></script>
+<script src="app.js?v={{BUILD}}"></script>
 </body>
 </html>

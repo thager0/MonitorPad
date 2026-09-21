@@ -295,6 +295,15 @@ That invalidates every paired device. Pair again with a fresh PIN.
 
 ## Troubleshooting
 
+**Away from home.** MonitorPad only reaches the PC over your own network, so
+it cannot do anything from elsewhere. Opening it away from home shows a plain
+"Can't reach *your PC*" screen rather than failing silently: the interface
+itself is cached on the phone, so it still opens and can explain itself.
+
+To make it work from anywhere, put the PC and phone on a
+[Tailscale](https://tailscale.com) tailnet and pair against the tailnet
+address. Nothing else changes.
+
 **The phone cannot reach the PC.** Check both are on the same Wi-Fi (not one
 on a guest network, and not the phone on cellular). Then check the firewall
 rule — see step 2. Some routers have "AP isolation" or "client isolation"

@@ -9,6 +9,7 @@ startup.
 """
 
 import argparse
+import hashlib
 import hmac
 import json
 import logging
@@ -207,6 +208,39 @@ class PairingPin:
 CONFIG = Config()
 PENDING = Pending()
 PIN = PairingPin()
+
+
+_build_cache = {"id": "", "at": 0.0}
+_build_lock = threading.Lock()
+
+
+def web_build_id():
+    """A short id for the current state of the web assets.
+
+    The phone is allowed to cache the interface so it still opens away from
+    home -- but a cached copy must not go on being served after the agent is
+    updated. The client compares this against the build it loaded and
+    refreshes itself when they differ, so caching buys offline resilience
+    without costing timely updates.
+    """
+    now = time.time()
+    with _build_lock:
+        if _build_cache["id"] and now - _build_cache["at"] < 5:
+            return _build_cache["id"]
+        digest = hashlib.sha1()
+        for root, _dirs, files in os.walk(WEB_ROOT):
+            for name in sorted(files):
+                path = os.path.join(root, name)
+                try:
+                    stat = os.stat(path)
+                except OSError:
+                    continue
+                digest.update(name.encode("utf-8", "replace"))
+                digest.update(str(stat.st_size).encode())
+                digest.update(str(int(stat.st_mtime)).encode())
+        _build_cache["id"] = digest.hexdigest()[:10]
+        _build_cache["at"] = now
+        return _build_cache["id"]
 
 
 def _build_logger():
@@ -439,6 +473,7 @@ def build_state():
         "profiles": sorted(CONFIG.data.get("profiles", {}).keys()),
         "host": socket.gethostname(),
         "confirmSeconds": CONFIRM_SECONDS,
+        "build": web_build_id(),
     }
 
 
@@ -620,12 +655,12 @@ class Handler(BaseHTTPRequestHandler):
     _status = 0
 
     def _send(self, status, body=b"", content_type="application/json",
-              extra=None):
+              extra=None, cache="no-store"):
         self._status = status
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", cache)
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("Referrer-Policy", "no-referrer")
         for key, value in (extra or {}).items():
@@ -786,7 +821,26 @@ class Handler(BaseHTTPRequestHandler):
             ctype = "application/manifest+json"
         with open(target, "rb") as handle:
             data = handle.read()
-        return self._send(200, data, ctype or "application/octet-stream")
+
+        build = web_build_id()
+        if target.endswith("index.html"):
+            # Stamp the build into the page and onto every asset it pulls in.
+            # The asset URLs then change whenever anything changes, so they
+            # can be cached hard and still never go stale.
+            data = (data.decode("utf-8")
+                    .replace("{{BUILD}}", build)
+                    .encode("utf-8"))
+            # A week is what lets the app open at all away from home. It
+            # cannot go stale unnoticed: the running app compares its build
+            # against the agent's and refreshes itself when they differ.
+            cache = "max-age=604800"
+        elif "v=" in (urlparse(self.path).query or ""):
+            cache = "max-age=31536000, immutable"
+        else:
+            cache = "max-age=86400"
+
+        return self._send(200, data, ctype or "application/octet-stream",
+                          cache=cache)
 
 
 def lan_addresses():
