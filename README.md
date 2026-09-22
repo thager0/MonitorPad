@@ -259,7 +259,12 @@ model.
 ### Profiles
 
 Save a whole setup — arrangement, resolutions, refresh rates, HDR, which
-monitors are on — under a name, and restore it in one tap. Useful for
+monitors are on — under a name, and restore it in one tap.
+
+A profile is checked before anything changes: if it needs a display that is
+switched off or on another input, it is refused up front with that display
+named, and your screens are left alone. If something still fails part-way
+through, the previous setup is put back rather than leaving you half-changed. Useful for
 "Work" versus "Gaming" versus "Movie night, TV only". Applying a profile is
 covered by the same 15-second confirm.
 

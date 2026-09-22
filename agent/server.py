@@ -315,7 +315,19 @@ def remember(monitors):
     now = time.time()
     changed = False
 
+    # A display part-way through being switched on can briefly report an
+    # active path with no device path at all. Its key then comes from the
+    # fallback in display._stable_key, so it is not the display's real
+    # identity -- and remembering it creates a phantom twin that counts
+    # against the real one when naming ("LG HDR 4K (DisplayPort #2)") for the
+    # next 60 days. Never persist those, and clear any already stored.
+    for key in [k for k, v in known.items() if not v.get("devicePath")]:
+        del known[key]
+        changed = True
+
     for mon in monitors:
+        if not mon.get("devicePath"):
+            continue
         entry = known.get(mon["key"])
         fresh = {
             "name": mon["name"],
@@ -563,8 +575,18 @@ def save_profile(name):
         raise display.DisplayError("A profile needs a name.")
     if len(name) > 40:
         raise display.DisplayError("Profile names are limited to 40 chars.")
+    current = display.list_monitors()
+    # A display still settling after being switched on has no identity yet,
+    # and a profile saved now would name it by a stand-in key that will never
+    # match it again -- so the profile could never be applied.
+    unsettled = [m["label"] for m in current
+                 if m["active"] and not m.get("devicePath")]
+    if unsettled:
+        raise display.DisplayError(
+            "{} is still starting up. Wait a few seconds and save again.".format(
+                " and ".join(unsettled)))
     snap = display.snapshot()
-    monitors = {m["key"]: m["label"] for m in display.list_monitors()}
+    monitors = {m["key"]: m["label"] for m in current}
     CONFIG.data.setdefault("profiles", {})[name] = {
         "snapshot": snap,
         "labels": monitors,
@@ -573,14 +595,58 @@ def save_profile(name):
     CONFIG.save()
 
 
+def _labels():
+    """Display names for every display we know of, present or not, so a
+    message can name a TV that is switched off."""
+    present = display.list_monitors()
+    known = CONFIG.data.setdefault("known", {})
+    merged = present + absent_monitors(present, known)
+    assign_labels(merged, known)
+    return {mon["key"]: mon["label"] for mon in merged}
+
+
 def apply_profile(name):
     profile = CONFIG.data.get("profiles", {}).get(name)
     if not profile:
         raise display.DisplayError("No profile called {}.".format(name))
+    wanted = profile["snapshot"]
+    log("Applying profile {!r}".format(name))
+
+    # Check the profile can actually be reached before touching anything.
+    # Restoring runs step by step -- switch these on, then those off -- so if
+    # a display it needs is not connected, the "on" step quietly has nothing
+    # to do and the "off" step goes ahead anyway, leaving screens dark with
+    # nothing lit to replace them.
+    present = {m["key"]: m for m in display.list_monitors()}
+    missing = [key for key in wanted["active"] if key not in present]
+    if missing:
+        labels = _labels()
+        names = [labels.get(key, "a display") for key in missing]
+        raise display.DisplayError(
+            "{} needs {}, which {} not connected right now. Turn it on and "
+            "set it to the PC's input, then try again. Nothing was "
+            "changed.".format(
+                name, " and ".join(names),
+                "is" if len(names) == 1 else "are"))
+
     snapshot = display.snapshot()
-    errors = display.restore(profile["snapshot"])
+    errors = display.restore(wanted)
     if errors:
-        raise display.DisplayError("; ".join(errors))
+        # Part of the profile may already have been applied. Put the screens
+        # back exactly as they were rather than leave a half-changed desktop
+        # with no watchdog armed to recover it.
+        log_warning("Profile {!r} failed part-way ({}); rolling back.".format(
+            name, "; ".join(errors)))
+        rollback = display.restore(snapshot)
+        if rollback:
+            log_warning("Rollback incomplete: " + "; ".join(rollback))
+            raise display.DisplayError(
+                "Could not apply {}: {} -- and restoring the previous setup "
+                "did not fully work: {}".format(
+                    name, "; ".join(errors), "; ".join(rollback)))
+        raise display.DisplayError(
+            "Could not apply {}: {}. Your displays have been put back as "
+            "they were.".format(name, "; ".join(errors)))
     change = PENDING.arm(snapshot)
     result = build_state()
     result["pending"] = {"id": change.id, "secondsLeft": CONFIRM_SECONDS}
